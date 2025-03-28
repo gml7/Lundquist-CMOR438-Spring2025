@@ -19,6 +19,29 @@ class SingleNeuron(object):
         Contains the keyword used to indicate that the algorithm
         used by the instance is one-dimensional linear regression.
     
+    data_dimension : int
+        The size of the feature vectors to be input to the model, i.e.
+        the number of weights.
+
+    model_type : str
+        Contains the keyword indicating which algorithm the neuron 
+        instance is using.
+
+    activation_function : function
+        A handle to the function defining how to process the 
+        preactivation value.
+
+    weights : numpy.ndarray or float
+        The weights of the model.
+    
+    bias : float
+        The bias of the model.
+
+    previous_weights : numpy.ndarray or float
+        The weights of the model previous to the most recent training.
+    
+    previous_bias : float
+        The bias of the model previous to the most recent training.
                                                                        |
 
     Methods 
@@ -78,7 +101,7 @@ class SingleNeuron(object):
     
     train(self, inputs, target_outputs, learning_rate=0.5, 
             num_epochs=50)
-        Trains the model (updates weights) using a batch of inputs and 
+        Trains the model (updtes weights) using a batch of inputs and 
         target outputs.
 
     reset_model(self)
