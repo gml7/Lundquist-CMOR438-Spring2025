@@ -82,7 +82,11 @@ class SingleNeuron(object):
         function if the user wants one different from the default for 
         the model type.
 
+<<<<<<< HEAD
+    predict(self, inputs, weights=None, bias=None, 
+=======
     predict_outputs(self, inputs, weights=None, bias=None, 
+>>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
             use_current_weights_and_bias=True)
         Outputs the model's predictions given an array of feature 
         vectors. 
@@ -323,7 +327,11 @@ class SingleNeuron(object):
             self.bias = bias
         self.previous_bias = self.bias
 
+<<<<<<< HEAD
+    def predict(self, 
+=======
     def predict_outputs(self, 
+>>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
                         inputs, 
                         use_current_weights_and_bias=True,
                         weights=None, 
@@ -419,7 +427,11 @@ class SingleNeuron(object):
 
         """
         gradient = SingleNeuron.perceptron_stochastic_gradient(
+<<<<<<< HEAD
+                        self.predict(input), target_output)
+=======
                         self.predict_outputs(input), target_output)
+>>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
         self.weights -= gradient * input
         self.bias -= gradient
         return gradient
@@ -450,7 +462,11 @@ class SingleNeuron(object):
 
         """
         gradient = SingleNeuron.linear_regression_1D_stochastic_gradient(
+<<<<<<< HEAD
+                                                self.predict(input), 
+=======
                                                 self.predict_outputs(input), 
+>>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
                                                 target_output, 
                                                 training_data_length)
         self.weights -= learning_rate * gradient * input
@@ -509,7 +525,11 @@ class SingleNeuron(object):
             loss_function = SingleNeuron.linear_regression_loss_function
 
         loss_at_epoch = np.empty(1 + num_epochs)
+<<<<<<< HEAD
+        loss_at_epoch[0] = loss_function(self.predict(inputs),
+=======
         loss_at_epoch[0] = loss_function(self.predict_outputs(inputs),
+>>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
                                          target_outputs)
 
         for epoch_index in ShadyBar(
@@ -520,7 +540,11 @@ class SingleNeuron(object):
                 weight_update(input, target_output)
                 
             loss_at_epoch[epoch_index+1] = loss_function(
+<<<<<<< HEAD
+                    self.predict(inputs), target_outputs)
+=======
                     self.predict_outputs(inputs), target_outputs)
+>>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
 
         return loss_at_epoch
 
