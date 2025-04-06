@@ -90,11 +90,7 @@ class SingleNeuron(object):
         function if the user wants one different from the default for 
         the model type.
 
-<<<<<<< HEAD
     predict(self, inputs, weights=None, bias=None, 
-=======
-    predict_outputs(self, inputs, weights=None, bias=None, 
->>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
             use_current_weights_and_bias=True)
         Outputs the model's predictions given an array of feature 
         vectors. 
@@ -126,6 +122,7 @@ class SingleNeuron(object):
     """
     type_perceptron = "perceptron"
     type_linear_regression_1D = "linear regression 1D"
+    type_logistic_regression_1D = "logistic regression 1D"
 
     @classmethod
     def sign(cls, input_value):
@@ -144,6 +141,14 @@ class SingleNeuron(object):
         Returns input_value. 
         """
         return input_value
+
+    @classmethod
+    def sigmoid(cls, input_value):
+        """ 
+        Returns the value of the sigmoid function at input_value.
+        https://en.wikipedia.org/wiki/Sigmoid_function 
+        """
+        return 1.0 / (1.0 + np.exp(-input_value))
 
     @classmethod
     def perceptron_loss_function(cls, 
@@ -202,27 +207,53 @@ class SingleNeuron(object):
         Parameters
         ----------
         predicted_outputs : array_like
-            Perceptron's predictions. 
+            Linear regression model's predictions. 
 
         target_outputs : array_like
-            Targets we`re training the perceptron to meet.
+            Targets we`re training the model to meet.
 
         Returns
         -------
         loss : float
             The error of the prediction.
         """
-        return (1/(2*target_outputs.size)) \
+        return (1.0/(2.0*target_outputs.size)) \
                 * np.sum((predicted_outputs - target_outputs)**2)
         
     @classmethod
-    def linear_regression_1D_stochastic_gradient(cls, 
-                                                 predicted_output, 
-                                                 target_output, 
-                                                 training_data_length):
+    def binary_cross_entropy_loss_function(cls, 
+                                    predicted_outputs, 
+                                    target_outputs):
         """ 
-        The gradient of the one-dimensional linear regression loss 
-        function when it employs stochastic descent.
+        The loss function for the logistic regression algorithm.
+
+        Parameters
+        ----------
+        predicted_outputs : array_like
+            Logistic regression model's predictions. 
+
+        target_outputs : array_like
+            Targets we`re training the model to meet.
+
+        Returns
+        -------
+        loss : float
+            The error of the prediction.
+        """
+        return (1.0 / target_outputs.size) \
+                * np.sum(-target_outputs*np.log(predicted_outputs)
+                         - ((1.0 - target_outputs) 
+                            * np.log(1 - predicted_outputs)))
+
+    @classmethod
+    def regression_1D_stochastic_gradient(cls, 
+                                          predicted_output, 
+                                          target_output):
+        """ 
+        The gradient of the one-dimensional linear and logistic 
+        regression loss function when it employs stochastic descent.
+        It's very simple, but this function makes the function
+        consistent and descriptive.
 
         Parameters
         ----------
@@ -239,7 +270,7 @@ class SingleNeuron(object):
             calculate predicted_output
 
         """
-        return (1/training_data_length) * (predicted_output - target_output)
+        return predicted_output - target_output
 
     @classmethod
     def preactivation(cls, input, weights, bias):
@@ -316,6 +347,8 @@ class SingleNeuron(object):
                 self.activation_function = SingleNeuron.sign
             elif self.model_type == SingleNeuron.type_linear_regression_1D:
                 self.activation_function = SingleNeuron.linear_1D
+            elif self.model_type == SingleNeuron.type_logistic_regression_1D:
+                self.activation_function = SingleNeuron.sigmoid
         else:
             self.activation_function = activation_function
         
@@ -335,11 +368,13 @@ class SingleNeuron(object):
             self.bias = bias
         self.previous_bias = self.bias
 
+        self.loss_history = []
+
     def predict(self, 
-                        inputs, 
-                        use_current_weights_and_bias=True,
-                        weights=None, 
-                        bias=None):
+                inputs, 
+                use_current_weights_and_bias=True,
+                weights=None, 
+                bias=None):
         """ 
         Outputs the model's predictions given an array of feature 
         vectors. 
@@ -400,7 +435,7 @@ class SingleNeuron(object):
             raise ValueError("Mismatch between expected feature vector "
                 + f"dimension ({self.data_dimension = }) and input " 
                 + f"shape ({np.shape(inputs) = }).")
-    
+
     def current_weights_and_bias(self):
         """ 
         Utility function for wrapping weights and bias in a single tuple.
@@ -436,14 +471,13 @@ class SingleNeuron(object):
         self.bias -= gradient
         return gradient
 
-    def linear_regression_1D_stochastic_gradient_update(self, 
-                                                        input, 
-                                                        target_output, 
-                                                        learning_rate, 
-                                                        training_data_length):
+    def regression_1D_stochastic_gradient_update(self, 
+                                                 input, 
+                                                 target_output, 
+                                                 learning_rate):
         """ 
-        Updates the weights of the linear regression model using 
-        stochastic descent.
+        Updates the weights of the linear and logistic regression models 
+        using stochastic descent.
         
         Parameters
         ----------
@@ -461,10 +495,9 @@ class SingleNeuron(object):
             The calculated gradient used to update the weights.
 
         """
-        gradient = SingleNeuron.linear_regression_1D_stochastic_gradient(
+        gradient = SingleNeuron.regression_1D_stochastic_gradient(
                                                 self.predict(input), 
-                                                target_output, 
-                                                training_data_length)
+                                                target_output)
         self.weights -= learning_rate * gradient * input
         self.bias -= learning_rate * gradient
         return gradient
@@ -516,9 +549,18 @@ class SingleNeuron(object):
             
         elif self.model_type == SingleNeuron.type_linear_regression_1D:
             weight_update = lambda input, target : \
-                self.linear_regression_1D_stochastic_gradient_update(
-                        input, target, learning_rate, len(target_outputs))
+                self.regression_1D_stochastic_gradient_update(
+                                            input, target, learning_rate)
             loss_function = SingleNeuron.linear_regression_loss_function
+
+        # Weirdly, the partial derivative of the binary cross entropy 
+        # loss function is the same as the partial derivative of the 
+        # linear regression loss function
+        elif self.model_type == SingleNeuron.type_logistic_regression_1D:
+            weight_update = lambda input, target : \
+                self.regression_1D_stochastic_gradient_update(
+                                            input, target, learning_rate)
+            loss_function = SingleNeuron.binary_cross_entropy_loss_function
 
         loss_at_epoch = np.empty(1 + num_epochs)
         loss_at_epoch[0] = loss_function(self.predict(inputs),
