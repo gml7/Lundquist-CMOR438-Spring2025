@@ -1,5 +1,6 @@
 import numpy as np
 from progress.bar import ShadyBar
+import matplotlib.pyplot as plt
 
 class SingleNeuron(object):
     """
@@ -19,6 +20,36 @@ class SingleNeuron(object):
         Contains the keyword used to indicate that the algorithm
         used by the instance is one-dimensional linear regression.
     
+    data_dimension : int
+        The size of the feature vectors to be input to the model, i.e.
+        the number of weights.
+
+    model_type : str
+        Contains the keyword indicating which algorithm the neuron 
+        instance is using.
+
+    activation_function : function
+        A handle to the function defining how to process the 
+        preactivation value.
+
+    weights : numpy.ndarray or float
+        The weights of the model.
+    
+    bias : float
+        The bias of the model.
+
+    previous_weights : numpy.ndarray or float
+        The weights of the model previous to the most recent training.
+    
+    previous_bias : float
+        The bias of the model previous to the most recent training.
+
+    loss_history : list of floats
+        The model's loss on the training data in each epoch of its
+        training, according to the loss function used in each training.
+
+    prev_loss_history : list of floats
+        The loss history previous to the most recent training.
                                                                        |
 
     Methods 
@@ -82,7 +113,7 @@ class SingleNeuron(object):
     
     train(self, inputs, target_outputs, learning_rate=0.5, 
             num_epochs=50)
-        Trains the model (updates weights) using a batch of inputs and 
+        Trains the model (updtes weights) using a batch of inputs and 
         target outputs.
 
     reset_model(self)
@@ -503,6 +534,9 @@ class SingleNeuron(object):
             loss_at_epoch[epoch_index+1] = loss_function(
                     self.predict(inputs), target_outputs)
 
+        self.prev_loss_history = self.loss_history.copy()
+        self.loss_history.extend(loss_at_epoch)
+
         return loss_at_epoch
 
     def reset_model(self):
@@ -515,6 +549,9 @@ class SingleNeuron(object):
             self.weights = np.random.randn(self.weights.shape)
         self.bias = np.random.randn()
 
+        self.loss_history = []
+        self.prev_loss_history = []
+
     def forget_previous_training(self):
         """ 
         Resets the weights and bias to their values before the most recent
@@ -522,7 +559,35 @@ class SingleNeuron(object):
         """
         self.weights = np.copy(self.previous_weights)
         self.bias = np.copy(self.previous_bias)
+        self.loss_history = self.prev_loss_history.copy()
 
     def __repr__(self):
-        return "Model type: " + self.model_type + "\n" \
-            + "Weights: " + self.weights + " | Bias: " + self.bias
+        return "Single neuron model type: " + self.model_type \
+            + " || Weights: " + self.weights + " | Bias: " + self.bias
+
+    def plot_loss_history(self, plt_figure=None, loss_label=None):
+        
+        if loss_label is None:
+            loss_label = "Loss in " + self.__repr__()
+
+        loss_plot = None
+
+        if plt_figure is not None:
+            loss_plot = plt.plot(range(1, len(self.loss_history)+1), 
+                                 self.loss_history, 
+                                 label=loss_label, 
+                                 figure=plt_figure)
+        else:
+            plt.figure(figsize=(10,8))
+            loss_plot = plt.plot(range(1, len(self.loss_history)+1), 
+                                 self.loss_history, 
+                                 label=loss_label)
+            plt.legend(fontsize=15)
+            plt.xlabel("Epoch number", fontsize=15)
+            plt.ylabel("Loss value", fontsize=15)
+            plt.title("Loss over epochs", fontsize=18)
+            plt.show()
+
+        return loss_plot
+
+        
