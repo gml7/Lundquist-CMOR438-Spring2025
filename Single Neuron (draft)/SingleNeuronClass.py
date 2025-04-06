@@ -42,6 +42,10 @@ class SingleNeuron(object):
     
     previous_bias : float
         The bias of the model previous to the most recent training.
+
+    loss_history : list
+        The value of the loss function at every epoch ever recorded
+        by the model.
                                                                        |
 
     Methods 
@@ -82,11 +86,7 @@ class SingleNeuron(object):
         function if the user wants one different from the default for 
         the model type.
 
-<<<<<<< HEAD
     predict(self, inputs, weights=None, bias=None, 
-=======
-    predict_outputs(self, inputs, weights=None, bias=None, 
->>>>>>> fbf9b83d24e0cfa2e2d248d8b2ad2d9a9247d88e
             use_current_weights_and_bias=True)
         Outputs the model's predictions given an array of feature 
         vectors. 
@@ -108,7 +108,7 @@ class SingleNeuron(object):
         Trains the model (updtes weights) using a batch of inputs and 
         target outputs.
 
-    reset_model(self)
+    randomize_weights(self)
         Randomizes the weights and bias of the model.
     
     forget_previous_training(self)
@@ -327,6 +327,8 @@ class SingleNeuron(object):
             self.bias = bias
         self.previous_bias = self.bias
 
+        self.loss_history = []
+
     def predict(self, 
                         inputs, 
                         use_current_weights_and_bias=True,
@@ -501,7 +503,7 @@ class SingleNeuron(object):
         self.previous_bias = np.copy(self.bias)
         weight_update = None
         loss_function = None
-        
+
         if self.model_type == SingleNeuron.type_perceptron:
             weight_update = self.perceptron_stochastic_gradient_update
             loss_function = SingleNeuron.perceptron_loss_function
@@ -526,9 +528,10 @@ class SingleNeuron(object):
             loss_at_epoch[epoch_index+1] = loss_function(
                     self.predict(inputs), target_outputs)
 
+        self.loss_history.extend(loss_at_epoch)
         return loss_at_epoch
 
-    def reset_model(self):
+    def randomize_weights(self):
         """ 
         Randomizes the weights and bias of the model.
         """
@@ -547,5 +550,8 @@ class SingleNeuron(object):
         self.bias = np.copy(self.previous_bias)
 
     def __repr__(self):
-        return "Model type: " + self.model_type + "\n" \
+        return self.__str__()
+    
+    def __str__(self):
+        return "Model type: " + self.model_type + " || " \
             + "Weights: " + self.weights + " | Bias: " + self.bias
