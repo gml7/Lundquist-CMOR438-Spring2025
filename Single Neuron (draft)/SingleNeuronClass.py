@@ -369,6 +369,7 @@ class SingleNeuron(object):
         self.previous_bias = self.bias
 
         self.loss_history = []
+        self.prev_loss_history = []
 
     def predict(self, 
                 inputs, 
@@ -570,19 +571,27 @@ class SingleNeuron(object):
                 "Training", 
                 suffix="Epoch %(index)d / %(max)d").iter(range(num_epochs)):
             
+            temp_weights = None
+            temp_bias = None
+            temp_gradient = None
             for input, target_output in zip(inputs, target_outputs):
+                temp_weights = np.copy(self.weights)
+                temp_bias = self.bias
                 gradient = weight_update(input, target_output)
                 if np.any(np.isinf(self.weights) or np.isnan(self.weights)) \
                         or np.isinf(self.bias) or np.isnan(self.bias):
+                    self.forget_previous_training()
                     raise ValueError("Model has diverged. Try turning down the "
                                      + "learning rate!\n" 
-                                     + f"Previous weights:{self.previous_weights}"
-                                     + f" | Previous bias:{self.previous_bias}"
-                                     + f" | Gradient:{gradient} | " 
+                                     + f"Pre-divergence weights:{temp_weights}"
+                                     + f" | Pre-divergence bias:{temp_bias}"
+                                     + f" | Pre-divergence gradient:{temp_gradient}" 
                                      + f"\nEpoch:{epoch_index} | " 
                                      + f"Current input:{input} | "
-                                     + f"Current target output:{target_output} ")
-                
+                                     + f"Current target output:{target_output}\n"
+                                     + "Forgot this training.")
+                else:
+                    temp_gradient = gradient
                 
             loss_at_epoch[epoch_index+1] = loss_function(
                     self.predict(inputs), target_outputs)
@@ -622,7 +631,7 @@ class SingleNeuron(object):
 
     def __repr__(self):
         return "Single neuron model type: " + self.model_type \
-            + " || Weights: " + self.weights + " | Bias: " + self.bias
+            + f" || Weights: {self.weights} | Bias: {self.bias}"
 
     def plot_loss_history(self, plt_figure=None, loss_label=None):
         
