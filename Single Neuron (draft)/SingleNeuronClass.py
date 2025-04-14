@@ -440,7 +440,7 @@ class SingleNeuron(object):
         """ 
         Utility function for wrapping weights and bias in a single tuple.
         """
-        return (self.weights.copy(), self.bias)
+        return (np.copy(self.weights), self.bias)
     
     def perceptron_stochastic_gradient_update(self, 
                                               input, 
@@ -505,7 +505,7 @@ class SingleNeuron(object):
     def train(self, 
               inputs, 
               target_outputs, 
-              learning_rate=0.5, 
+              learning_rate=0.005, 
               num_epochs=50):
         """ 
         Trains the model (updates weights) using a batch of inputs and 
@@ -571,7 +571,18 @@ class SingleNeuron(object):
                 suffix="Epoch %(index)d / %(max)d").iter(range(num_epochs)):
             
             for input, target_output in zip(inputs, target_outputs):
-                weight_update(input, target_output)
+                gradient = weight_update(input, target_output)
+                if np.any(np.isinf(self.weights) or np.isnan(self.weights)) \
+                        or np.isinf(self.bias) or np.isnan(self.bias):
+                    raise ValueError("Model has diverged. Try turning down the "
+                                     + "learning rate!\n" 
+                                     + f"Previous weights:{self.previous_weights}"
+                                     + f" | Previous bias:{self.previous_bias}"
+                                     + f" | Gradient:{gradient} | " 
+                                     + f"\nEpoch:{epoch_index} | " 
+                                     + f"Current input:{input} | "
+                                     + f"Current target output:{target_output} ")
+                
                 
             loss_at_epoch[epoch_index+1] = loss_function(
                     self.predict(inputs), target_outputs)
@@ -584,6 +595,10 @@ class SingleNeuron(object):
     def reset_model(self):
         """ 
         Randomizes the weights and bias of the model.
+
+        Returns
+        -------
+        A tuple of the current weights and the bias.
         """
         if self.data_dimension == 1:
             self.weights = np.random.randn()
@@ -593,6 +608,8 @@ class SingleNeuron(object):
 
         self.loss_history = []
         self.prev_loss_history = []
+
+        return self.current_weights_and_bias()
 
     def forget_previous_training(self):
         """ 
