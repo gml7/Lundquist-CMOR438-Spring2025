@@ -578,7 +578,7 @@ class SingleNeuron(object):
                 temp_weights = np.copy(self.weights)
                 temp_bias = self.bias
                 gradient = weight_update(input, target_output)
-                if np.any(np.isinf(self.weights) or np.isnan(self.weights)) \
+                if np.isinf(self.weights).any() or np.isnan(self.weights).any() \
                         or np.isinf(self.bias) or np.isnan(self.bias):
                     self.forget_previous_training()
                     raise ValueError("Model has diverged. Try turning down the "
@@ -622,8 +622,8 @@ class SingleNeuron(object):
 
     def forget_previous_training(self):
         """ 
-        Resets the weights and bias to their values before the most recent
-        training.
+        Resets the weights, bias, and loss history to their values before 
+        the most recent training.
         """
         self.weights = np.copy(self.previous_weights)
         self.bias = np.copy(self.previous_bias)
@@ -634,9 +634,24 @@ class SingleNeuron(object):
             + f" || Weights: {self.weights} | Bias: {self.bias}"
 
     def plot_loss_history(self, plt_figure=None, loss_label=None):
-        
+        """ 
+        Creates a plot of the training error over the history of the model.
+
+        Parameters
+        ----------
+        plt_figure: Matplotlib.pyplot.Figure (default None)
+        An existing figure on which to plot.
+
+        loss_label: str (default None)
+        A legend label for the plot
+
+        Returns
+        -------
+        loss_plot: Matplotlib.pyplot.Line2D
+        The line object containing the plotting information.
+        """
         if loss_label is None:
-            loss_label = "Loss in " + self.__repr__()
+            loss_label = "Training error in " + self.model_type
 
         loss_plot = None
 
