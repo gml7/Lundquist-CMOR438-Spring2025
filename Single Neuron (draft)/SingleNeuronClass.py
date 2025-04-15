@@ -573,17 +573,19 @@ class SingleNeuron(object):
         loss_at_epoch[0] = loss_function(self.predict(inputs),
                                          target_outputs)
 
+        temp_weights = None
+        temp_bias = None
+        temp_gradient = None
         for epoch_index in ShadyBar(
                 "Training", 
                 suffix="Epoch %(index)d / %(max)d").iter(range(num_epochs)):
             
-            temp_weights = None
-            temp_bias = None
-            temp_gradient = None
             for input, target_output in zip(inputs, target_outputs):
                 temp_weights = np.copy(self.weights)
                 temp_bias = self.bias
+
                 gradient = weight_update(input, target_output)
+                
                 if np.isinf(self.weights).any() or np.isnan(self.weights).any() \
                         or np.isinf(self.bias) or np.isnan(self.bias):
                     self.forget_previous_training()
