@@ -359,6 +359,11 @@ class SingleNeuron(object):
                 # This avoids additional checks in preactivation
                 self.weights = self.weights[0]
         else:
+            if (data_dimension == 1 and not np.isscalar(weights)) \
+                    or np.shape(weights) != (data_dimension,):
+                raise ValueError("Provided data dimension is "
+                                 + f"{data_dimension} but shape of provided"
+                                 + f" weights is {np.shape(weights)}")
             self.weights = weights
         self.previous_weights = self.weights
 
@@ -428,9 +433,9 @@ class SingleNeuron(object):
         
         elif inputs.shape[-1] == self.data_dimension    \
                 or (self.data_dimension == 1 and inputs.ndim == 1):
-            return [self.activation_function(
+            return np.array([self.activation_function(
                         SingleNeuron.preactivation(input, weights, bias)) 
-                    for input in inputs]
+                    for input in inputs])
 
         else: 
             raise ValueError("Mismatch between expected feature vector "
@@ -564,6 +569,7 @@ class SingleNeuron(object):
             loss_function = SingleNeuron.binary_cross_entropy_loss_function
 
         loss_at_epoch = np.empty(1 + num_epochs)
+        # print(f"{self.predict(inputs) = }\n{target_outputs = }")
         loss_at_epoch[0] = loss_function(self.predict(inputs),
                                          target_outputs)
 
