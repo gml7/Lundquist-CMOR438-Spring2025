@@ -240,7 +240,7 @@ class SingleNeuron(object):
         loss : float
             The error of the prediction.
         """
-        return (1.0 / target_outputs.size) \
+        return (1.0 / np.size(target_outputs)) \
                 * np.sum(-target_outputs*np.log(predicted_outputs)
                          - ((1.0 - target_outputs) 
                             * np.log(1 - predicted_outputs)))
