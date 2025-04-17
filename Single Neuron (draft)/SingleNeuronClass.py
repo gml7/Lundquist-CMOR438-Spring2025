@@ -360,7 +360,7 @@ class SingleNeuron(object):
                 self.weights = self.weights[0]
         else:
             if (data_dimension == 1 and not np.isscalar(weights)) \
-                    or np.shape(weights) != (data_dimension,):
+                    or (data_dimension > 1 and np.shape(weights) != (data_dimension,)):
                 raise ValueError("Provided data dimension is "
                                  + f"{data_dimension} but shape of provided"
                                  + f" weights is {np.shape(weights)}")
