@@ -137,7 +137,7 @@ class SingleNeuron(object):
             return -1
         
     @classmethod
-    def linear_1D(cls, input_value):
+    def linear(cls, input_value):
         """ 
         Returns input_value. 
         """
@@ -174,6 +174,60 @@ class SingleNeuron(object):
         """
         return (1/4) * np.sum((predicted_outputs - target_outputs)**2)
     
+    @classmethod
+    def linear_regression_loss_function(cls, 
+                                        predicted_outputs, 
+                                        target_outputs):
+        """ 
+        The loss function for the linear regression algorithm.
+
+        Parameters
+        ----------
+        predicted_outputs : array_like
+            Linear regression model's predictions. 
+
+        target_outputs : array_like
+            Targets we`re training the model to meet.
+
+        Returns
+        -------
+        loss : float
+            The error of the prediction.
+        """
+        return (1.0/(2.0*np.shape((target_outputs,))[-1])) \
+                * np.sum((predicted_outputs - target_outputs)**2)
+        
+    @classmethod
+    def binary_cross_entropy_loss_function(cls, 
+                                    predicted_outputs, 
+                                    target_outputs):
+        """ 
+        The loss function for the logistic regression algorithm.
+
+        Parameters
+        ----------
+        predicted_outputs : array_like
+            Logistic regression model's predictions. 
+
+        target_outputs : array_like
+            Targets we`re training the model to meet.
+
+        Returns
+        -------
+        loss : float
+            The error of the prediction.
+        """
+        return (1.0 / np.size(target_outputs)) \
+                * np.sum(-target_outputs*np.log(predicted_outputs)
+                         - ((1.0 - target_outputs) 
+                            * np.log(1 - predicted_outputs)))
+
+    @classmethod
+    def mean_squared_error(cls, 
+                           predicted_outputs,
+                           target_outputs):
+        return 0.5 * (predicted_outputs - target_outputs)**2
+
     @classmethod
     def perceptron_stochastic_gradient(cls, 
                                        predicted_output, 
@@ -224,60 +278,6 @@ class SingleNeuron(object):
 
         """
         return predicted_output - target_output
-
-    @classmethod
-    def linear_regression_loss_function(cls, 
-                                        predicted_outputs, 
-                                        target_outputs):
-        """ 
-        The loss function for the linear regression algorithm.
-
-        Parameters
-        ----------
-        predicted_outputs : array_like
-            Linear regression model's predictions. 
-
-        target_outputs : array_like
-            Targets we`re training the model to meet.
-
-        Returns
-        -------
-        loss : float
-            The error of the prediction.
-        """
-        return (1.0/(2.0*target_outputs.size)) \
-                * np.sum((predicted_outputs - target_outputs)**2)
-        
-    @classmethod
-    def binary_cross_entropy_loss_function(cls, 
-                                    predicted_outputs, 
-                                    target_outputs):
-        """ 
-        The loss function for the logistic regression algorithm.
-
-        Parameters
-        ----------
-        predicted_outputs : array_like
-            Logistic regression model's predictions. 
-
-        target_outputs : array_like
-            Targets we`re training the model to meet.
-
-        Returns
-        -------
-        loss : float
-            The error of the prediction.
-        """
-        return (1.0 / np.size(target_outputs)) \
-                * np.sum(-target_outputs*np.log(predicted_outputs)
-                         - ((1.0 - target_outputs) 
-                            * np.log(1 - predicted_outputs)))
-
-    @classmethod
-    def mean_squared_error(cls, 
-                           predicted_outputs,
-                           target_outputs):
-        return 0.5 * (predicted_outputs - target_outputs)**2
 
     @classmethod
     def preactivation(cls, input, weights, bias):
@@ -353,7 +353,7 @@ class SingleNeuron(object):
             if self.model_type == SingleNeuron.type_perceptron:
                 self.activation_function = SingleNeuron.sign
             elif self.model_type == SingleNeuron.type_linear_regression_1D:
-                self.activation_function = SingleNeuron.linear_1D
+                self.activation_function = SingleNeuron.linear
             elif self.model_type == SingleNeuron.type_logistic_regression:
                 self.activation_function = SingleNeuron.sigmoid
         else:
