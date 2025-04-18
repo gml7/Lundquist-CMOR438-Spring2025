@@ -1,5 +1,7 @@
 import numpy as np
 from progress.bar import ShadyBar
+import matplotlib.pyplot as plt
+from mlxtend.plotting import plot_decision_regions
 
 class SingleNeuron(object):
     """
@@ -43,9 +45,12 @@ class SingleNeuron(object):
     previous_bias : float
         The bias of the model previous to the most recent training.
 
-    loss_history : list
-        The value of the loss function at every epoch ever recorded
-        by the model.
+    loss_history : list of floats
+        The model's loss on the training data in each epoch of its
+        training, according to the loss function used in each training.
+
+    prev_loss_history : list of floats
+        The loss history previous to the most recent training.
                                                                        |
 
     Methods 
@@ -118,6 +123,7 @@ class SingleNeuron(object):
     """
     type_perceptron = "perceptron"
     type_linear_regression_1D = "linear regression 1D"
+    type_logistic_regression = "logistic regression"
 
     @classmethod
     def sign(cls, input_value):
@@ -136,6 +142,14 @@ class SingleNeuron(object):
         Returns input_value. 
         """
         return input_value
+
+    @classmethod
+    def sigmoid(cls, input_value):
+        """ 
+        Returns the value of the sigmoid function at input_value.
+        https://en.wikipedia.org/wiki/Sigmoid_function 
+        """
+        return 1.0 / (1.0 + np.exp(-input_value))
 
     @classmethod
     def perceptron_loss_function(cls, 
@@ -185,36 +199,14 @@ class SingleNeuron(object):
         return (1/2) * (predicted_output - target_output)
 
     @classmethod
-    def linear_regression_loss_function(cls, 
-                                        predicted_outputs, 
-                                        target_outputs):
+    def regression_stochastic_gradient(cls, 
+                                       predicted_output, 
+                                       target_output):
         """ 
-        The loss function for the linear regression algorithm.
-
-        Parameters
-        ----------
-        predicted_outputs : array_like
-            Perceptron's predictions. 
-
-        target_outputs : array_like
-            Targets we`re training the perceptron to meet.
-
-        Returns
-        -------
-        loss : float
-            The error of the prediction.
-        """
-        return (1/(2*target_outputs.size)) \
-                * np.sum((predicted_outputs - target_outputs)**2)
-        
-    @classmethod
-    def linear_regression_1D_stochastic_gradient(cls, 
-                                                 predicted_output, 
-                                                 target_output, 
-                                                 training_data_length):
-        """ 
-        The gradient of the one-dimensional linear regression loss 
-        function when it employs stochastic descent.
+        The gradient of the one-dimensional linear and logistic 
+        regression loss function when it employs stochastic descent.
+        It's very simple, but this function makes the function
+        consistent and descriptive.
 
         Parameters
         ----------
@@ -231,7 +223,61 @@ class SingleNeuron(object):
             calculate predicted_output
 
         """
-        return (1/training_data_length) * (predicted_output - target_output)
+        return predicted_output - target_output
+
+    @classmethod
+    def linear_regression_loss_function(cls, 
+                                        predicted_outputs, 
+                                        target_outputs):
+        """ 
+        The loss function for the linear regression algorithm.
+
+        Parameters
+        ----------
+        predicted_outputs : array_like
+            Linear regression model's predictions. 
+
+        target_outputs : array_like
+            Targets we`re training the model to meet.
+
+        Returns
+        -------
+        loss : float
+            The error of the prediction.
+        """
+        return (1.0/(2.0*target_outputs.size)) \
+                * np.sum((predicted_outputs - target_outputs)**2)
+        
+    @classmethod
+    def binary_cross_entropy_loss_function(cls, 
+                                    predicted_outputs, 
+                                    target_outputs):
+        """ 
+        The loss function for the logistic regression algorithm.
+
+        Parameters
+        ----------
+        predicted_outputs : array_like
+            Logistic regression model's predictions. 
+
+        target_outputs : array_like
+            Targets we`re training the model to meet.
+
+        Returns
+        -------
+        loss : float
+            The error of the prediction.
+        """
+        return (1.0 / np.size(target_outputs)) \
+                * np.sum(-target_outputs*np.log(predicted_outputs)
+                         - ((1.0 - target_outputs) 
+                            * np.log(1 - predicted_outputs)))
+
+    @classmethod
+    def mean_squared_error(cls, 
+                           predicted_outputs,
+                           target_outputs):
+        return 0.5 * (predicted_outputs - target_outputs)**2
 
     @classmethod
     def preactivation(cls, input, weights, bias):
@@ -308,6 +354,8 @@ class SingleNeuron(object):
                 self.activation_function = SingleNeuron.sign
             elif self.model_type == SingleNeuron.type_linear_regression_1D:
                 self.activation_function = SingleNeuron.linear_1D
+            elif self.model_type == SingleNeuron.type_logistic_regression:
+                self.activation_function = SingleNeuron.sigmoid
         else:
             self.activation_function = activation_function
         
@@ -318,6 +366,11 @@ class SingleNeuron(object):
                 # This avoids additional checks in preactivation
                 self.weights = self.weights[0]
         else:
+            if (data_dimension == 1 and not np.isscalar(weights)) \
+                    or (data_dimension > 1 and np.shape(weights) != (data_dimension,)):
+                raise ValueError("Provided data dimension is "
+                                 + f"{data_dimension} but shape of provided"
+                                 + f" weights is {np.shape(weights)}")
             self.weights = weights
         self.previous_weights = self.weights
 
@@ -328,12 +381,29 @@ class SingleNeuron(object):
         self.previous_bias = self.bias
 
         self.loss_history = []
+        self.prev_loss_history = []
+
+    def set_weights_and_bias(self, 
+                             weights, 
+                             bias):
+        if np.size(weights) == self.data_dimension:
+            if self.data_dimension == 1 or isinstance(weights, np.ndarray):
+                self.weights = weights
+            else:
+                self.weights = np.array(weights)
+        else:
+            raise ValueError("Incompatible size of input array and data dimension.\n" \
+                             + f"{self.data_dimension = } but {np.size(weights) = }")
+        if not np.isscalar(bias):
+            raise ValueError(f"{bias = } but it must be a scalar.")
+        else:
+            self.bias = bias
 
     def predict(self, 
-                        inputs, 
-                        use_current_weights_and_bias=True,
-                        weights=None, 
-                        bias=None):
+                inputs, 
+                use_current_weights_and_bias=True,
+                weights=None, 
+                bias=None):
         """ 
         Outputs the model's predictions given an array of feature 
         vectors. 
@@ -386,20 +456,20 @@ class SingleNeuron(object):
         
         elif inputs.shape[-1] == self.data_dimension    \
                 or (self.data_dimension == 1 and inputs.ndim == 1):
-            return [self.activation_function(
+            return np.array([self.activation_function(
                         SingleNeuron.preactivation(input, weights, bias)) 
-                    for input in inputs]
+                    for input in inputs])
 
         else: 
             raise ValueError("Mismatch between expected feature vector "
                 + f"dimension ({self.data_dimension = }) and input " 
                 + f"shape ({np.shape(inputs) = }).")
-    
+
     def current_weights_and_bias(self):
         """ 
         Utility function for wrapping weights and bias in a single tuple.
         """
-        return (self.weights.copy(), self.bias)
+        return (np.copy(self.weights), self.bias)
     
     def perceptron_stochastic_gradient_update(self, 
                                               input, 
@@ -430,14 +500,13 @@ class SingleNeuron(object):
         self.bias -= gradient
         return gradient
 
-    def linear_regression_1D_stochastic_gradient_update(self, 
-                                                        input, 
-                                                        target_output, 
-                                                        learning_rate, 
-                                                        training_data_length):
+    def regression_stochastic_gradient_update(self, 
+                                              input, 
+                                              target_output, 
+                                              learning_rate):
         """ 
-        Updates the weights of the linear regression model using 
-        stochastic descent.
+        Updates the weights of the linear and logistic regression models 
+        using stochastic descent.
         
         Parameters
         ----------
@@ -455,10 +524,9 @@ class SingleNeuron(object):
             The calculated gradient used to update the weights.
 
         """
-        gradient = SingleNeuron.linear_regression_1D_stochastic_gradient(
+        gradient = SingleNeuron.regression_stochastic_gradient(
                                                 self.predict(input), 
-                                                target_output, 
-                                                training_data_length)
+                                                target_output)
         self.weights -= learning_rate * gradient * input
         self.bias -= learning_rate * gradient
         return gradient
@@ -466,8 +534,10 @@ class SingleNeuron(object):
     def train(self, 
               inputs, 
               target_outputs, 
-              learning_rate=0.5, 
-              num_epochs=50):
+              learning_rate=0.005, 
+              num_epochs=50, 
+              weight_update=None, 
+              loss_function=None):
         """ 
         Trains the model (updates weights) using a batch of inputs and 
         target outputs.
@@ -501,32 +571,73 @@ class SingleNeuron(object):
         """
         self.previous_weights = np.copy(self.weights)
         self.previous_bias = np.copy(self.bias)
-        weight_update = None
-        loss_function = None
+        
+        if weight_update is None:
+            if self.model_type == SingleNeuron.type_perceptron:
+                weight_update = self.perceptron_stochastic_gradient_update
+                
+            elif self.model_type == SingleNeuron.type_linear_regression_1D:
+                weight_update = lambda input, target : \
+                    self.regression_stochastic_gradient_update(
+                                                input, target, learning_rate)
 
-        if self.model_type == SingleNeuron.type_perceptron:
-            weight_update = self.perceptron_stochastic_gradient_update
-            loss_function = SingleNeuron.perceptron_loss_function
+            elif self.model_type == SingleNeuron.type_logistic_regression:
+                # Weirdly, the partial derivative of the binary cross entropy 
+                # loss function is the same as the partial derivative of the 
+                # linear regression loss function
+                weight_update = lambda input, target : \
+                    self.regression_stochastic_gradient_update(
+                                                input, target, learning_rate)
+
+        if loss_function is None:
+            if self.model_type == SingleNeuron.type_perceptron:
+                loss_function = SingleNeuron.perceptron_loss_function
+                
+            elif self.model_type == SingleNeuron.type_linear_regression_1D:
+                loss_function = SingleNeuron.linear_regression_loss_function
+
             
-        elif self.model_type == SingleNeuron.type_linear_regression_1D:
-            weight_update = lambda input, target : \
-                self.linear_regression_1D_stochastic_gradient_update(
-                        input, target, learning_rate, len(target_outputs))
-            loss_function = SingleNeuron.linear_regression_loss_function
+            elif self.model_type == SingleNeuron.type_logistic_regression:
+                loss_function = SingleNeuron.binary_cross_entropy_loss_function
 
         loss_at_epoch = np.empty(1 + num_epochs)
+        # print(f"{self.predict(inputs) = }\n{target_outputs = }")
         loss_at_epoch[0] = loss_function(self.predict(inputs),
                                          target_outputs)
 
+        temp_weights = None
+        temp_bias = None
+        temp_gradient = None
         for epoch_index in ShadyBar(
                 "Training", 
                 suffix="Epoch %(index)d / %(max)d").iter(range(num_epochs)):
             
             for input, target_output in zip(inputs, target_outputs):
-                weight_update(input, target_output)
+                temp_weights = np.copy(self.weights)
+                temp_bias = self.bias
+
+                gradient = weight_update(input, target_output)
+                
+                if np.isinf(self.weights).any() or np.isnan(self.weights).any() \
+                        or np.isinf(self.bias) or np.isnan(self.bias):
+                    self.forget_previous_training()
+                    raise ValueError("Model has diverged. Try turning down the "
+                                     + "learning rate!\n" 
+                                     + f"Pre-divergence weights:{temp_weights}"
+                                     + f" | Pre-divergence bias:{temp_bias}"
+                                     + f" | Pre-divergence gradient:{temp_gradient}" 
+                                     + f"\nEpoch:{epoch_index} | " 
+                                     + f"Current input:{input} | "
+                                     + f"Current target output:{target_output}\n"
+                                     + "Forgot this training.")
+                else:
+                    temp_gradient = gradient
                 
             loss_at_epoch[epoch_index+1] = loss_function(
                     self.predict(inputs), target_outputs)
+
+        self.prev_loss_history = self.loss_history.copy()
+        self.loss_history.extend(loss_at_epoch)
 
         self.loss_history.extend(loss_at_epoch)
         return loss_at_epoch
@@ -534,6 +645,10 @@ class SingleNeuron(object):
     def randomize_weights(self):
         """ 
         Randomizes the weights and bias of the model.
+
+        Returns
+        -------
+        A tuple of the current weights and the bias.
         """
         if self.data_dimension == 1:
             self.weights = np.random.randn()
@@ -541,17 +656,76 @@ class SingleNeuron(object):
             self.weights = np.random.randn(self.weights.shape)
         self.bias = np.random.randn()
 
+        self.loss_history = []
+        self.prev_loss_history = []
+
+        return self.current_weights_and_bias()
+
     def forget_previous_training(self):
         """ 
-        Resets the weights and bias to their values before the most recent
-        training.
+        Resets the weights, bias, and loss history to their values before 
+        the most recent training.
         """
         self.weights = np.copy(self.previous_weights)
         self.bias = np.copy(self.previous_bias)
+        self.loss_history = self.prev_loss_history.copy()
 
     def __repr__(self):
-        return self.__str__()
-    
-    def __str__(self):
-        return "Model type: " + self.model_type + " || " \
-            + "Weights: " + self.weights + " | Bias: " + self.bias
+        return "Single neuron model type: " + self.model_type \
+            + f" || Weights: {self.weights} | Bias: {self.bias}"
+
+    def plot_loss_history(self, plt_figure=None, loss_label=None):
+        """ 
+        Creates a plot of the training error over the history of the model.
+
+        Parameters
+        ----------
+        plt_figure: Matplotlib.pyplot.Figure (default None)
+        An existing figure on which to plot.
+
+        loss_label: str (default None)
+        A legend label for the plot
+
+        Returns
+        -------
+        loss_plot: Matplotlib.pyplot.Line2D
+        The line object containing the plotting information.
+        """
+        if loss_label is None:
+            loss_label = "Training error in " + self.model_type
+
+        loss_plot = None
+
+        if plt_figure is not None:
+            loss_plot = plt.plot(range(1, len(self.loss_history)+1), 
+                                 self.loss_history, 
+                                 label=loss_label, 
+                                 figure=plt_figure)
+        else:
+            plt.figure(figsize=(10,8))
+            loss_plot = plt.plot(range(1, len(self.loss_history)+1), 
+                                 self.loss_history, 
+                                 label=loss_label)
+            plt.legend(fontsize=15)
+            plt.xlabel("Epoch number", fontsize=15)
+            plt.ylabel("Loss value", fontsize=15)
+            plt.title("Loss over epochs", fontsize=18)
+            plt.show()
+
+        return loss_plot
+
+    def plot_decision_boundary(self, 
+                               inputs, 
+                               targets, 
+                               xlabel="x",
+                               ylabel="y"):
+        if not (self.model_type == SingleNeuron.type_perceptron
+                or self.model_type == SingleNeuron.type_logistic_regression):
+            print("This model is not a classifier.")
+        else: 
+            plt.figure(figsize = (10, 8))
+            plot_decision_regions(inputs, targets, clf = self)
+            plt.title("Neuron Decision Boundary", fontsize = 18)
+            plt.xlabel(xlabel, fontsize=15)
+            plt.ylabel(ylabel, fontsize=15)
+            plt.show()
