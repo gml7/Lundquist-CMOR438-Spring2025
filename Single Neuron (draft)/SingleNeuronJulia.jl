@@ -119,23 +119,25 @@ function weight_update(neur::SingleNeuron, inputs, targets, numepochs;
     lossatepoch[begin] = neur.loss(predict(neur, inputs))
 
     for epoch in 1:numepochs
+
         for (input, target) in zip(inputs, targets)
             gradient = neur.gradient(predict(neur, input), target)
             # Gradient is a scalar, since a single neuron can only output
             # a single value.
             tempweights .-= (learning_rate * gradient) .* input
             tempbias -= learning_rate * gradient
-            if (any(isinf.(neur.weights)) || any(isnan.(neur.weights)) 
-                    || isinf(neur.bias) || isnan(neur.bias))
-                error("Model has diverged. Try turning down the learning rate.\n\
-                        Previous weights: $(neur.weights) | \
-                        Previous bias: $(neur.bias) | Epoch: $(epoch)")
-            else
-                copy!(neur.weights, tempweights)
-                neur.bias = tempbias
-            end
         end
 
+        if (any(isinf.(tempweights)) || any(isnan.(tempweights)) 
+                || isinf(tempbias) || isnan(tempbias))
+            error("Model has diverged. Try turning down the learning rate.\n\
+                Previous weights: $(neur.weights) | \
+                Previous bias: $(neur.bias) | Epoch: $(epoch)")
+        else
+            copy!(neur.weights, tempweights)
+            neur.bias = tempbias
+        end
+        
         lossatepoch[epoch+1] = neur.loss(predict(neur, inputs), targets)
     end
 
@@ -158,7 +160,8 @@ function train(neur::SingleNeuron, inputs, targets;
     lossatepoch = weight_update(neur, inputs, targets, numepochs)
 
     neur.prevlosshistory = neur.losshistory
-    return neur.losshistory = [neur.losshistory; lossatepoch]
+    neur.losshistory = [neur.losshistory; lossatepoch]
+    return lossatepoch
 end
 
 function forgetprevtraining(neur::SingleNeuron)
