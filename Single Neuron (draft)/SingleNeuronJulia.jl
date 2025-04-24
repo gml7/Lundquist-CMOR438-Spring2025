@@ -21,9 +21,9 @@ mutable struct SingleNeuron{ActivatorF, GradientF, LossF}
     prevlosshistory::Array{Float64,1}
 end 
 
-const type_perceptron = "perceptron"
-const type_linearregression = "linear regression"
-const type_logisticregression = "logistic regression"
+const type_perceptron = :perceptron
+const type_linearregression = :linearregression
+const type_logisticregression = :logisticregression
     
 function SingleNeuron(activationfunction::Function, 
                       gradientfunction::Function, 
@@ -39,7 +39,7 @@ function SingleNeuron(activationfunction::Function,
                                               bias, [], [])
 end
 
-function SingleNeuron(datadimension::Int; modeltype::String, 
+function SingleNeuron(datadimension::Int, modeltype::String; 
             weights::Vector{Float64}=zeros(Float64, datadimension), 
             bias::Float64=0.0)
     if length(weights) != datadimension
