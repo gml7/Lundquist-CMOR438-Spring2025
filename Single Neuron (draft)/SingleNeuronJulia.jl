@@ -1,8 +1,9 @@
 module SingleNeuronJulia
 
-using LinearAlgebra
+using LinearAlgebra, DataFrames
 
-export SingleNeuron, predict, train,
+export SingleNeuron, predict, train!,
+        forgetprevtraining!,
         sign_zeropositive, linear, sigmoid, 
         perceptronloss, linearregressionloss, 
         binarycrossentropyloss, meansquarederror, 
@@ -77,10 +78,16 @@ preactivation(neuron::SingleNeuron, input) = (dot(input, neuron.weights)
 
 preactivation(input, weights, bias) = dot(input, weights) + bias
 
-function predict(neuron::SingleNeuron, inputs)
-    # Okay so this is actually a problem if we get a single vector as an input.
-    return neuron.activationfunction.(preactivation(neuron, vec) 
-                                      for vec in inputs)
+function predict(neuron::SingleNeuron, input)
+    return neuron.activationfunction(preactivation(neuron, input))
+end
+
+function predict(neuron::SingleNeuron, inputs::DataFrame)
+    return [predict(neuron, input) for input in eachrow(inputs)]
+end
+
+function predict(neuron::SingleNeuron, inputs::Vector{<:Vector})
+    return [predict(neuron, input) for input in inputs]
 end
 
 "Returns -1 if the argument is less than 0, 1 otherwise."
@@ -114,29 +121,41 @@ perceptronstochasticgradient(prediction, target) = 0.5 * (prediction .- target)
 
 regressionstochasticgradient(prediction, target) = prediction .- target
 
-function weight_update(neur::SingleNeuron, inputs, targets, numepochs; 
-                       tempweights=(w = zeros(size(neur.weights)); copy!(w, neur.weights)), 
-                       tempbias=neur.bias, lossatepoch=zeros(numepochs+1))
-    lossatepoch[begin] = neur.loss(predict(neur, inputs))
+function updateweight!(neur::SingleNeuron, inputs::Vector{<:Vector}, targets, 
+                       learningrate)
+    for (input, target) in zip(inputs, targets)
+        gradient = neur.gradient(predict(neur, input), target)
+        neur.weights .-= (learningrate * gradient) .* input
+        neur.bias -= learningrate * gradient
+    end
+end
+
+function updateweight!(neur::SingleNeuron, inputs::DataFrame, targets, 
+                       learningrate)
+    return updateweight!(neur, Vector.(eachrow(inputs)), targets, learningrate)
+end
+
+function trainloop!(neur::SingleNeuron, inputs, targets, numepochs, 
+                    learningrate; 
+                    tempweights=copy(neur.weights), 
+                    tempbias=neur.bias, lossatepoch=zeros(numepochs+1))
+
+    lossatepoch[begin] = neur.loss(predict(neur, inputs), targets)
 
     for epoch in 1:numepochs
+        
+        copy!(tempweights, neur.weights)
+        tempbias = neur.bias
 
-        for (input, target) in zip(inputs, targets)
-            gradient = neur.gradient(predict(neur, input), target)
-            # Gradient is a scalar, since a single neuron can only output
-            # a single value.
-            tempweights .-= (learning_rate * gradient) .* input
-            tempbias -= learning_rate * gradient
-        end
+        updateweight!(neur, inputs, targets, learningrate)
 
-        if (any(isinf.(tempweights)) || any(isnan.(tempweights)) 
-                || isinf(tempbias) || isnan(tempbias))
-            error("Model has diverged. Try turning down the learning rate.\n\
-                Previous weights: $(neur.weights) | \
-                Previous bias: $(neur.bias) | Epoch: $(epoch)")
-        else
-            copy!(neur.weights, tempweights)
+        if (any(isinf.(neur.weights)) || any(isnan.(neur.weights)) 
+                || isinf(neur.bias) || isnan(neur.bias))
+            copyto!(neur.weights, tempweights)
             neur.bias = tempbias
+            error("Model has diverged. Try turning down the learning rate.\n\
+                Previous weights: $(tempweights) | \
+                Previous bias: $(tempbias) | Epoch: $(epoch)")
         end
         
         lossatepoch[epoch+1] = neur.loss(predict(neur, inputs), targets)
@@ -145,27 +164,36 @@ function weight_update(neur::SingleNeuron, inputs, targets, numepochs;
     return lossatepoch
 end
 
-function train(neur::SingleNeuron, inputs, targets; 
-        learning_rate=0.005, numepochs=50)
-    if length(inputs) != length(targets)
+function checkdatalengths(inputs, targets)
+    return length(inputs) == length(targets)
+end
+
+function checkdatalengths(inputs::DataFrame, targets)
+    return nrow(inputs) == length(targets)
+end
+
+function train!(neur::SingleNeuron, inputs, targets; 
+        learningrate=0.005, numepochs=50)
+    if !checkdatalengths(inputs, targets)
         error("Input and target arrays must be of the same length")
     end
 
     if neur.gradient == perceptronstochasticgradient
-        learning_rate = 1
+        learningrate = 1
     end
 
     copy!(neur.previousweights, neur.weights)
     neur.previousbias = neur.bias
 
-    lossatepoch = weight_update(neur, inputs, targets, numepochs)
+    lossatepoch = trainloop!(neur, inputs, targets, learningrate, 
+                             numepochs)
 
     neur.prevlosshistory = neur.losshistory
     neur.losshistory = [neur.losshistory; lossatepoch]
     return lossatepoch
 end
 
-function forgetprevtraining(neur::SingleNeuron)
+function forgetprevtraining!(neur::SingleNeuron)
     copy!(neur.weights, neur.previousweights)
     neur.bias = neur.previousbias
     copy!(neur.losshistory, neur.prevlosshistory)
