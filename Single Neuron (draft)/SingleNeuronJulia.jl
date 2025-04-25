@@ -39,7 +39,7 @@ function SingleNeuron(activationfunction::Function,
                                               bias, [], [])
 end
 
-function SingleNeuron(datadimension::Int, modeltype::String; 
+function SingleNeuron(datadimension::Int, modeltype::Symbol; 
             weights::Vector{Float64}=zeros(Float64, datadimension), 
             bias::Float64=0.0)
     if length(weights) != datadimension
@@ -78,6 +78,7 @@ preactivation(neuron::SingleNeuron, input) = (dot(input, neuron.weights)
 preactivation(input, weights, bias) = dot(input, weights) + bias
 
 function predict(neuron::SingleNeuron, inputs)
+    # Okay so this is actually a problem if we get a single vector as an input.
     return neuron.activationfunction.(preactivation(neuron, vec) 
                                       for vec in inputs)
 end
