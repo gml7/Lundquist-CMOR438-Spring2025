@@ -121,8 +121,15 @@ perceptronstochasticgradient(prediction, target) = 0.5 * (prediction .- target)
 
 regressionstochasticgradient(prediction, target) = prediction .- target
 
-function updateweight!(neur::SingleNeuron, inputs::Vector{<:Vector}, targets, 
+function updateweightsingle!(neur::SingleNeuron, input, target, 
                        learningrate)
+    gradient = neur.gradient(predict(neur, input), target)
+    neur.weights .-= (learningrate * gradient) .* input
+    neur.bias -= learningrate * gradient
+end
+
+function updateweightsmultiple!(neur::SingleNeuron, inputs, targets, 
+                                learningrate)
     for (input, target) in zip(inputs, targets)
         gradient = neur.gradient(predict(neur, input), target)
         neur.weights .-= (learningrate * gradient) .* input
@@ -130,24 +137,42 @@ function updateweight!(neur::SingleNeuron, inputs::Vector{<:Vector}, targets,
     end
 end
 
-function updateweight!(neur::SingleNeuron, inputs::DataFrame, targets, 
-                       learningrate)
-    return updateweight!(neur, Vector.(eachrow(inputs)), targets, learningrate)
+# Generally, assumes that you're putting in multiple input-target pairs...
+function updateweights!(neur::SingleNeuron, inputs, targets, learningrate)
+    return updateweightsmultiple!(neur, inputs, targets, learningrate)
 end
 
-function trainloop!(neur::SingleNeuron, inputs, targets, numepochs, 
-                    learningrate; 
-                    tempweights=copy(neur.weights), 
-                    tempbias=neur.bias, lossatepoch=zeros(numepochs+1))
+# ...but we have to do a check if we get a vector of numbers, just in case 
+# the feature vectors are one-dimensional and the vector of numbers isn't a 
+# feature vector but is instead a vector of feature scalars
+function updateweights!(neur::SingleNeuron, inputs::Vector{<:Number}, targets, 
+                       learningrate)
+    if length(neur.weights) == 1
+        return updateweightsmultiple!(neur, inputs, targets, learningrate)
+    else
+        return updateweightsingle!(neur, inputs, targets, learningrate)
+    end
+end
 
+function updateweights!(neur::SingleNeuron, inputs::DataFrame, targets, 
+                       learningrate)
+    return updateweights!(neur, Vector.(eachrow(inputs)), targets, learningrate)
+end
+
+function trainloop!(neur::SingleNeuron, inputs, targets, 
+                    numepochs, learningrate; 
+                    lossatepoch = zeros(numepochs+1), 
+                    weightupdate! = updateweightsmultiple!)
+        
     lossatepoch[begin] = neur.loss(predict(neur, inputs), targets)
 
+    tempweights=copy(neur.weights)
     for epoch in 1:numepochs
         
         copy!(tempweights, neur.weights)
         tempbias = neur.bias
 
-        updateweight!(neur, inputs, targets, learningrate)
+        weightupdate!(neur, inputs, targets, learningrate)
 
         if (any(isinf.(neur.weights)) || any(isnan.(neur.weights)) 
                 || isinf(neur.bias) || isnan(neur.bias))
@@ -162,6 +187,27 @@ function trainloop!(neur::SingleNeuron, inputs, targets, numepochs,
     end
 
     return lossatepoch
+end
+
+function trainloop!(neur::SingleNeuron, inputs::Vector{<:Number}, targets, 
+                    numepochs, learningrate; 
+                    lossatepoch = zeros(numepochs+1))
+    if length(neur.weights) == length(inputs)
+        return trainloop!(neur, inputs, targets, numepochs, learningrate; 
+                          lossatepoch=lossatepoch, 
+                          weightupdate! = updateweightsingle!)
+    else
+        return trainloop!(neur, inputs, targets, numepochs, learningrate; 
+                          lossatepoch=lossatepoch, 
+                          weightupdate! = updateweightmultiple!)
+    end
+end
+
+function trainloop!(neur::SingleNeuron, inputs::DataFrame, targets, 
+                    numepochs, learningrate; 
+                    lossatepoch=zeros(numepochs+1))
+    return trainloop!(neur, Vector.(eachrow(inputs)), targets, numepochs, 
+                      learningrate; lossatepoch=lossatepoch)
 end
 
 function checkdatalengths(inputs, targets)
@@ -191,6 +237,12 @@ function train!(neur::SingleNeuron, inputs, targets;
     neur.prevlosshistory = neur.losshistory
     neur.losshistory = [neur.losshistory; lossatepoch]
     return lossatepoch
+end
+
+function train!(neur::SingleNeuron, inputs::DataFrame, targets;
+                learningrate = 0.005, numepochs=50)
+    return train!(neur, Vector.(eachrow(inputs)), targets; 
+                  learningrate, numepochs)
 end
 
 function forgetprevtraining!(neur::SingleNeuron)
