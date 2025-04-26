@@ -1,6 +1,6 @@
 module SingleNeuronJulia
 
-using LinearAlgebra, DataFrames
+using LinearAlgebra, DataFrames, Plots
 
 export SingleNeuron, predict, train!,
         forgetprevtraining!,
@@ -90,6 +90,10 @@ function predict(neuron::SingleNeuron, inputs::Vector{<:Vector})
     return [predict(neuron, input) for input in inputs]
 end
 
+function predict(neuron::SingleNeuron, inputs::AbstractRange)
+    return [predict(neuron, input) for input in inputs]
+end
+
 "Returns -1 if the argument is less than 0, 1 otherwise."
 sign_zeropositive(value) = value < 0.0 ? -1 : 1
 
@@ -176,7 +180,7 @@ function trainloop!(neur::SingleNeuron, inputs, targets,
 
         if (any(isinf.(neur.weights)) || any(isnan.(neur.weights)) 
                 || isinf(neur.bias) || isnan(neur.bias))
-            copyto!(neur.weights, tempweights)
+            copy!(neur.weights, tempweights)
             neur.bias = tempbias
             error("Model has diverged. Try turning down the learning rate.\n\
                 Previous weights: $(tempweights) | \
@@ -199,7 +203,7 @@ function trainloop!(neur::SingleNeuron, inputs::Vector{<:Number}, targets,
     else
         return trainloop!(neur, inputs, targets, numepochs, learningrate; 
                           lossatepoch=lossatepoch, 
-                          weightupdate! = updateweightmultiple!)
+                          weightupdate! = updateweightsmultiple!)
     end
 end
 
@@ -219,20 +223,20 @@ function checkdatalengths(inputs::DataFrame, targets)
 end
 
 function train!(neur::SingleNeuron, inputs, targets; 
-        learningrate=0.005, numepochs=50)
+                numepochs=50, learningrate=0.005)
     if !checkdatalengths(inputs, targets)
         error("Input and target arrays must be of the same length")
     end
 
-    if neur.gradient == perceptronstochasticgradient
+    if isequal(neur.gradient, perceptronstochasticgradient)
         learningrate = 1
     end
 
     copy!(neur.previousweights, neur.weights)
     neur.previousbias = neur.bias
 
-    lossatepoch = trainloop!(neur, inputs, targets, learningrate, 
-                             numepochs)
+    lossatepoch = trainloop!(neur, inputs, targets, numepochs, 
+                             learningrate)
 
     neur.prevlosshistory = neur.losshistory
     neur.losshistory = [neur.losshistory; lossatepoch]
@@ -240,15 +244,51 @@ function train!(neur::SingleNeuron, inputs, targets;
 end
 
 function train!(neur::SingleNeuron, inputs::DataFrame, targets;
-                learningrate = 0.005, numepochs=50)
+                numepochs=50, learningrate = 0.005)
     return train!(neur, Vector.(eachrow(inputs)), targets; 
-                  learningrate, numepochs)
+                  numepochs=numepochs, learningrate=learningrate)
 end
 
 function forgetprevtraining!(neur::SingleNeuron)
     copy!(neur.weights, neur.previousweights)
     neur.bias = neur.previousbias
     copy!(neur.losshistory, neur.prevlosshistory)
+end
+
+function linerepresentation(neur::SingleNeuron, x)
+    if length(neur.weights) != 2
+        error("This neuron has $(length(neur.weights)) weights, \
+               so can't be represented as a line.")
+    else
+        return (neur.weights[1])
+    end
+end
+
+function plotneuron(neur::SingleNeuron; leftbound=0, rightbound=1,
+                    kw...)
+    if length(neur.weights) == 2
+        plotdomain = range(leftbound, rightbound, 100)
+        plot(plotdomain, linerepresentation(neur, plotdomain); kw...)
+    elseif length(neur.weights) == 1
+        plotdomain = range(leftbound, rightbound, 100)
+        plot(plotdomain, predict(neur, plotdomain); kw...)
+    else
+        error("Neuron has dimension $(length(neur.weights)) so can't \
+               be plotted in 2D.")
+    end
+end
+
+function plotneuron!(neur::SingleNeuron; leftbound=0, rightbound=1)
+    if length(neur.weights) == 2
+        plotdomain = range(leftbound, rightbound, 100)
+        plot!(plotdomain, linerepresentation(neur, plotdomain); kw...)
+    elseif length(neur.weights) == 1
+        plotdomain = range(leftbound, rightbound, 100)
+        plot!(plotdomain, predict(neur, plotdomain); kw...)
+    else
+        error("Neuron has dimension $(length(neur.weights)) so can't \
+               be plotted in 2D.")
+    end
 end
 
 end # SingleNeuronJulia module
