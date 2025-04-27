@@ -3,7 +3,8 @@ module SingleNeuronJulia
 using LinearAlgebra, DataFrames, Plots
 
 export SingleNeuron, predict, train!,
-        forgetprevtraining!,
+        forgetprevtraining!, plotneuron, 
+        plotneuron!,
         sign_zeropositive, linear, sigmoid, 
         perceptronloss, linearregressionloss, 
         binarycrossentropyloss, meansquarederror, 
@@ -78,8 +79,24 @@ preactivation(neuron::SingleNeuron, input) = (dot(input, neuron.weights)
 
 preactivation(input, weights, bias) = dot(input, weights) + bias
 
+function predictsingle(neuron::SingleNeuron, input)
+    return neuron.activationfunction(preactivation(neuron, input))
+end
+
+function predictmultiple(neuron::SingleNeuron, inputs)
+    return [predict(neuron, input) for input in inputs]
+end
+
 function predict(neuron::SingleNeuron, input)
     return neuron.activationfunction(preactivation(neuron, input))
+end
+
+function predict(neuron::SingleNeuron, input::Vector{<:Number})
+    if length(neuron.weights) == length(input)
+        return predictsingle(neuron, input)
+    else
+        return predictmultiple(neuron, input)
+    end
 end
 
 function predict(neuron::SingleNeuron, inputs::DataFrame)
@@ -87,11 +104,11 @@ function predict(neuron::SingleNeuron, inputs::DataFrame)
 end
 
 function predict(neuron::SingleNeuron, inputs::Vector{<:Vector})
-    return [predict(neuron, input) for input in inputs]
+    return predictmultiple(neuron, inputs)
 end
 
 function predict(neuron::SingleNeuron, inputs::AbstractRange)
-    return [predict(neuron, input) for input in inputs]
+    return predictmultiple(neuron, inputs)
 end
 
 "Returns -1 if the argument is less than 0, 1 otherwise."
@@ -127,7 +144,7 @@ regressionstochasticgradient(prediction, target) = prediction .- target
 
 function updateweightsingle!(neur::SingleNeuron, input, target, 
                        learningrate)
-    gradient = neur.gradient(predict(neur, input), target)
+    gradient = neur.gradient(predictsingle(neur, input), target)
     neur.weights .-= (learningrate * gradient) .* input
     neur.bias -= learningrate * gradient
 end
@@ -135,7 +152,7 @@ end
 function updateweightsmultiple!(neur::SingleNeuron, inputs, targets, 
                                 learningrate)
     for (input, target) in zip(inputs, targets)
-        gradient = neur.gradient(predict(neur, input), target)
+        gradient = neur.gradient(predictsingle(neur, input), target)
         neur.weights .-= (learningrate * gradient) .* input
         neur.bias -= learningrate * gradient
     end
@@ -166,9 +183,17 @@ end
 function trainloop!(neur::SingleNeuron, inputs, targets, 
                     numepochs, learningrate; 
                     lossatepoch = zeros(numepochs+1), 
-                    weightupdate! = updateweightsmultiple!)
-        
-    lossatepoch[begin] = neur.loss(predict(neur, inputs), targets)
+                    ismultipleinputs = true)
+    
+    if ismultipleinputs 
+        weightupdate! = updateweightsmultiple!
+        predictfunc = predictmultiple
+    else 
+        weightupdate!= updateweightsingle!
+        predictfunc = predictsingle
+    end
+
+    lossatepoch[begin] = neur.loss(predictfunc(neur, inputs), targets)
 
     tempweights=copy(neur.weights)
     for epoch in 1:numepochs
@@ -187,30 +212,36 @@ function trainloop!(neur::SingleNeuron, inputs, targets,
                 Previous bias: $(tempbias) | Epoch: $(epoch)")
         end
         
-        lossatepoch[epoch+1] = neur.loss(predict(neur, inputs), targets)
+        lossatepoch[epoch+1] = neur.loss(predictfunc(neur, inputs), targets)
     end
 
     return lossatepoch
 end
 
-function trainloop!(neur::SingleNeuron, inputs::Vector{<:Number}, targets, 
-                    numepochs, learningrate; 
-                    lossatepoch = zeros(numepochs+1))
+# General behavior assumes `inputs` is an iterator of multiple inputs
+function dispatchtraining!(neur::SingleNeuron, inputs, targets, 
+                           numepochs, learningrate; 
+                           lossatepoch=zeros(numepochs+1))
+    return trainloop!(neur, inputs, targets, numepochs, 
+                      learningrate; lossatepoch=lossatepoch)
+end
+
+function dispatchtraining!(neur::SingleNeuron, inputs::Vector{<:Number}, 
+                           targets, numepochs, learningrate; 
+                           lossatepoch = zeros(numepochs+1))
     if length(neur.weights) == length(inputs)
         return trainloop!(neur, inputs, targets, numepochs, learningrate; 
-                          lossatepoch=lossatepoch, 
-                          weightupdate! = updateweightsingle!)
+                          lossatepoch=lossatepoch, ismultipleinputs=false)
     else
         return trainloop!(neur, inputs, targets, numepochs, learningrate; 
-                          lossatepoch=lossatepoch, 
-                          weightupdate! = updateweightsmultiple!)
+                          lossatepoch=lossatepoch)
     end
 end
 
-function trainloop!(neur::SingleNeuron, inputs::DataFrame, targets, 
+function dispatchtraining!(neur::SingleNeuron, inputs::DataFrame, targets, 
                     numepochs, learningrate; 
                     lossatepoch=zeros(numepochs+1))
-    return trainloop!(neur, Vector.(eachrow(inputs)), targets, numepochs, 
+    return dispatchtraining!(neur, Vector.(eachrow(inputs)), targets, numepochs, 
                       learningrate; lossatepoch=lossatepoch)
 end
 
@@ -235,8 +266,8 @@ function train!(neur::SingleNeuron, inputs, targets;
     copy!(neur.previousweights, neur.weights)
     neur.previousbias = neur.bias
 
-    lossatepoch = trainloop!(neur, inputs, targets, numepochs, 
-                             learningrate)
+    lossatepoch = dispatchtraining!(neur, inputs, targets, numepochs, 
+                                    learningrate)
 
     neur.prevlosshistory = neur.losshistory
     neur.losshistory = [neur.losshistory; lossatepoch]
@@ -278,7 +309,8 @@ function plotneuron(neur::SingleNeuron; leftbound=0, rightbound=1,
     end
 end
 
-function plotneuron!(neur::SingleNeuron; leftbound=0, rightbound=1)
+function plotneuron!(neur::SingleNeuron; leftbound=0, rightbound=1, 
+                     kw...)
     if length(neur.weights) == 2
         plotdomain = range(leftbound, rightbound, 100)
         plot!(plotdomain, linerepresentation(neur, plotdomain); kw...)
