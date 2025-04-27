@@ -291,7 +291,7 @@ function linerepresentation(neur::SingleNeuron, x)
         error("This neuron has $(length(neur.weights)) weights, \
                so can't be represented as a line.")
     else
-        return (neur.weights[1])
+        return (neur.weights[1] .* x .+ neur.bias) / -neur.weights(2)
     end
 end
 
