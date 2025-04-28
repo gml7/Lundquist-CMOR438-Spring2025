@@ -237,7 +237,7 @@ Returns the value of the sigmoid function at input_value.
     
     https://en.wikipedia.org/wiki/Sigmoid_function 
 """
-sigmoid(value) = 1.0 / (1.0 + exp(-value))
+sigmoid(value) = 1.0 ./ (1.0 .+ exp.(-value))
 
 "The perceptron's loss function."
 perceptronloss(predictions, targets) = 0.25 * sum((predictions .- targets).^2)
