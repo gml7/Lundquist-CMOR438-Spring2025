@@ -1,2 +1,5 @@
 # K-Nearest Neighbor
 K-nearest neighbor is a non-neural algorithm. When given a new data point to classify, it looks at the k closest data points in the training set (based on distance, usually Euclidean), and assigns the most common class among them to the new point. It doesn’t actually learn a model during training. It just stores the data and makes decisions at the time of prediction. K-NN works well for small datasets and problems where similar things are expected to be near each other. K-NN can be used for more than classifying, too: by treating the labels of the neighboring points as values of a function on the training space, K-NN can be used for regression. It outputs the average of the neighbors' labels.
+
+## Implementation 
+The algorithm is implemented in the `KNearestNeighbor.ipynb` jupyter notebook. Run the cells in order to reproduce our results.

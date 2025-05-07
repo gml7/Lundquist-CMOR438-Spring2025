@@ -12,7 +12,7 @@ Here we illustrate:
 - K-nearest neighbor for classification and regression
 
 ## Implementations
-How each algorithm works is illustrated in a jupyter notebook, using a Julia 1.11.5 kernel. The single neuron models are implemented in a separate Julia file, which may be included in other projects.
+How each algorithm works is illustrated in a jupyter notebook, using a Julia kernel. The single neuron models are implemented in a separate Julia file, which may be included in other projects.
 
 ## Data
-We use the venerable UCI Wine dataset for the lightweight single neuron and nearest neighbor algorithms, and we use the EMNIST dataset of handwritten letters to demonstrate neural networks. Each has well-defined features and targets to train on.
+We use the venerable UCI Wine dataset for the lightweight single neuron and nearest neighbor algorithms, and we use the FashionMNIST dataset to demonstrate neural networks. Each has well-defined features and targets to train on.
