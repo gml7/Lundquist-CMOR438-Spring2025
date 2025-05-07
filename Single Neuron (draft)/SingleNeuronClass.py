@@ -399,6 +399,17 @@ class SingleNeuron(object):
         else:
             self.bias = bias
 
+    def predict_fast_single(self, 
+                            input):
+        return self.activation_function(
+                SingleNeuron.preactivation(input, self.weights, self.bias))
+
+    def predict_fast_multiple(self, 
+                              inputs):
+        return np.array([self.activation_function(
+                        SingleNeuron.preactivation(input, self.weights, self.bias)) 
+                         for input in inputs])
+
     def predict(self, 
                 inputs, 
                 use_current_weights_and_bias=True,
@@ -495,7 +506,7 @@ class SingleNeuron(object):
 
         """
         gradient = SingleNeuron.perceptron_stochastic_gradient(
-                        self.predict(input), target_output)
+                        self.predict_fast_single(input), target_output)
         self.weights -= gradient * input
         self.bias -= gradient
         return gradient
@@ -525,7 +536,7 @@ class SingleNeuron(object):
 
         """
         gradient = SingleNeuron.regression_stochastic_gradient(
-                                                self.predict(input), 
+                                                self.predict_fast_single(input), 
                                                 target_output)
         self.weights -= learning_rate * gradient * input
         self.bias -= learning_rate * gradient
@@ -596,7 +607,6 @@ class SingleNeuron(object):
             elif self.model_type == SingleNeuron.type_linear_regression_1D:
                 loss_function = SingleNeuron.linear_regression_loss_function
 
-            
             elif self.model_type == SingleNeuron.type_logistic_regression:
                 loss_function = SingleNeuron.binary_cross_entropy_loss_function
 
@@ -607,39 +617,28 @@ class SingleNeuron(object):
 
         temp_weights = None
         temp_bias = None
-        temp_gradient = None
-        for epoch_index in ShadyBar(
-                "Training", 
-                suffix="Epoch %(index)d / %(max)d").iter(range(num_epochs)):
-            
-            for input, target_output in zip(inputs, target_outputs):
-                temp_weights = np.copy(self.weights)
-                temp_bias = self.bias
+        for epoch_index in range(num_epochs):
+            temp_weights = np.copy(self.weights)
+            temp_bias = self.bias
 
-                gradient = weight_update(input, target_output)
-                
-                if np.isinf(self.weights).any() or np.isnan(self.weights).any() \
-                        or np.isinf(self.bias) or np.isnan(self.bias):
-                    self.forget_previous_training()
-                    raise ValueError("Model has diverged. Try turning down the "
-                                     + "learning rate!\n" 
-                                     + f"Pre-divergence weights:{temp_weights}"
-                                     + f" | Pre-divergence bias:{temp_bias}"
-                                     + f" | Pre-divergence gradient:{temp_gradient}" 
-                                     + f"\nEpoch:{epoch_index} | " 
-                                     + f"Current input:{input} | "
-                                     + f"Current target output:{target_output}\n"
-                                     + "Forgot this training.")
-                else:
-                    temp_gradient = gradient
-                
-            loss_at_epoch[epoch_index+1] = loss_function(
-                    self.predict(inputs), target_outputs)
+            for input, target_output in zip(inputs, target_outputs):
+                weight_update(input, target_output)
+            
+            if np.isinf(self.weights).any() or np.isnan(self.weights).any() \
+                    or np.isinf(self.bias) or np.isnan(self.bias):
+                self.forget_previous_training()
+                raise ValueError("Model has diverged. Try turning down the "
+                                    + "learning rate!\n" 
+                                    + f"Pre-divergence weights:{temp_weights}"
+                                    + f" | Pre-divergence bias:{temp_bias}\n"
+                                    + "Forgot this training.")
+
+            loss_at_epoch[epoch_index+1] = loss_function(self.predict(inputs), 
+                                                         target_outputs)
 
         self.prev_loss_history = self.loss_history.copy()
         self.loss_history.extend(loss_at_epoch)
 
-        self.loss_history.extend(loss_at_epoch)
         return loss_at_epoch
 
     def randomize_weights(self):

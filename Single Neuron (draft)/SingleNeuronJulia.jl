@@ -354,8 +354,8 @@ function trainloop!(neur::SingleNeuron, inputs, targets,
             copy!(neur.weights, tempweights)
             neur.bias = tempbias
             error("Model has diverged. Try turning down the learning rate.\n\
-                Previous weights: $(tempweights) | \
-                Previous bias: $(tempbias) | Epoch: $(epoch)")
+                Resetting to previous weights: $(tempweights) and \
+                previous bias: $(tempbias) | Epoch: $(epoch)")
         end
         
         lossatepoch[epoch+1] = neur.loss(predictfunc(neur, inputs), targets)
@@ -377,14 +377,14 @@ function dispatchtraining!(neur::SingleNeuron, inputs, targets,
 end
 
 """Runs `trainloop!` assuming either multiple inputs or a single input 
-depending on whether the length of `neur.weights` matches that of `inputs`. 
+depending on whether `inputs` is the size of `neur.weights` or not. 
 Dispatch is faster than checking type.
 Returns the value of the loss function at each epoch of training. 
 Not an exported function."""
 function dispatchtraining!(neur::SingleNeuron, inputs::Vector{<:Number}, 
                            targets, numepochs, learningrate; 
                            lossatepoch = zeros(numepochs+1))
-    if length(neur.weights) == length(inputs)
+    if length(neur.weights) == length(inputs) && all(length.(inputs) .== 1)
         return trainloop!(neur, inputs, targets, numepochs, learningrate; 
                           lossatepoch=lossatepoch, ismultipleinputs=false)
     else
@@ -486,7 +486,7 @@ and `neur.prevlosshistory`."""
 function forgetprevtraining!(neur::SingleNeuron)
     copy!(neur.weights, neur.previousweights)
     neur.bias = neur.previousbias
-    copy!(neur.losshistory, neur.prevlosshistory)
+    neur.losshistory = copy(neur.prevlosshistory)
 end
 
 """
