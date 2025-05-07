@@ -9,3 +9,5 @@ As data flows through the network, each neuron contributes to identifying featur
 ## Considerations
 Overfitting is a concern in supervised learning. Overfitting is when a machine learning model learns the training data too well, including its noise and details, which makes it perform poorly on new, unseen data. But clearly to assess if a model works, one needs labeled data. A common approach is to split labeled data into a training set and a testing set. You train the model on the training set, then use the error in the model's performance on the testing set to assess the accuracy of the model.
 
+## Implementation
+Check the `NeuralNetwork.ipynb` notebook for a demonstration of a neural network on the FashionMNIST dataset.
