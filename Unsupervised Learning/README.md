@@ -19,3 +19,4 @@ Examples:
 ## Algorithms
 Here we illustrate:
 - K-means clustering for classification
+- Density-based clustering for classification

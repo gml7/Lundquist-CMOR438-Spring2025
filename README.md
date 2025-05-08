@@ -11,9 +11,16 @@ Gabriel M. Lundquist
 Supervised learning is a type of machine learning where a model is trained using labeled data. That means each example in the training set comes with the correct answer. The goal is for the model to learn patterns so it can make accurate predictions on new, unseen data.
 
 We cover the use of supervised learning in both regression and classification, and the particular concepts/algorithms we cover are:
-- Single Neuron
+- Single Neuron models
 - Neural networks
 - K-Nearest Neighbor
+
+### Unsupervised Learning
+Unsupervised learning identifies clusters and trends in unlabeled data. The goal is unchanged, but the methods must be different.
+
+We cover the use of unsupervised learning in classification, in particular:
+- K-Means Clustering
+- Density-Based Clustering
 
 
 ## The Case for Julia
